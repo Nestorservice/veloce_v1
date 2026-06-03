@@ -67,7 +67,11 @@ class Orchestrator:
         for idx, batch in enumerate(batches, 1):
             print(f"--- Batch {idx}/{len(batches)} ({len(batch)} fichiers) ---")
 
-            gen = await self._generator.translate_batch(batch, idx)
+            try:
+                gen = await self._generator.translate_batch(batch, idx)
+            except RuntimeError as e:
+                print(f"  [IA ERREUR] Batch {idx} abandonne — {e}")
+                continue
             total_files += len(batch)
 
             # Compilation Go avec retry

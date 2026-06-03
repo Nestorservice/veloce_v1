@@ -29,7 +29,9 @@ class CodeGenerator:
 
         if php_files:
             content = self._read_files(php_files)
-            code = await self._ai.complete(GO_PROMPT.format(php_content=content))
+            code = self._strip_markdown(
+                await self._ai.complete(GO_PROMPT.format(php_content=content))
+            )
             out = self._go_out / f"batch_{batch_index:03d}" / "generated.go"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(code, encoding="utf-8")
@@ -39,13 +41,25 @@ class CodeGenerator:
 
         if blade_files:
             content = self._read_files(blade_files)
-            code = await self._ai.complete(DART_PROMPT.format(blade_content=content))
+            code = self._strip_markdown(
+                await self._ai.complete(DART_PROMPT.format(blade_content=content))
+            )
             out = self._dart_out / f"batch_{batch_index:03d}" / "generated.dart"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(code, encoding="utf-8")
             result.dart_files.append(str(out))
 
         return result
+
+    @staticmethod
+    def _strip_markdown(code: str) -> str:
+        """Retire les blocs ```go / ```dart / ``` que les LLMs ajoutent souvent."""
+        import re
+        # Retire la cloture ouvrante  ```go  ou  ```dart  ou  ```
+        code = re.sub(r"^```[a-zA-Z]*\n?", "", code.strip(), flags=re.MULTILINE)
+        # Retire la cloture fermante  ```
+        code = re.sub(r"```$", "", code.strip(), flags=re.MULTILINE)
+        return code.strip()
 
     def _read_files(self, files: list[Path]) -> str:
         parts = []
