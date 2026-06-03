@@ -30,8 +30,11 @@ class AIClient:
             },
         )
         if response.status_code == 429:
+            print(f"  [Groq] 429 rate-limit — bascule DeepSeek")
             return None
         if response.status_code != 200:
+            body = response.text[:200]
+            print(f"  [Groq] Echec HTTP {response.status_code} : {body}")
             return None
         return response.json()["choices"][0]["message"]["content"]
 
@@ -49,6 +52,8 @@ class AIClient:
             },
         )
         if response.status_code != 200:
+            body = response.text[:200]
+            print(f"  [DeepSeek] Echec HTTP {response.status_code} : {body}")
             return None
         return response.json()["choices"][0]["message"]["content"]
 

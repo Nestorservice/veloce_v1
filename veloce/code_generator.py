@@ -32,6 +32,10 @@ class CodeGenerator:
             code = self._strip_markdown(
                 await self._ai.complete(GO_PROMPT.format(php_content=content))
             )
+            if not code.lstrip().startswith("package"):
+                # L'IA n'a pas suivi les instructions — on force un prefixe valide
+                print(f"  [Generateur] Batch {batch_index} : reponse Go invalide, ajout package placeholder")
+                code = f"package generated\n\n// TODO: reponse IA non conforme — regenérer ce batch\n// ---\n{code}"
             out = self._go_out / f"batch_{batch_index:03d}" / "generated.go"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(code, encoding="utf-8")
