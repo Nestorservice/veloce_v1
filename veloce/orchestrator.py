@@ -1,3 +1,6 @@
+import subprocess
+from pathlib import Path
+
 from veloce.config import Config
 from veloce.ai_client import AIClient
 from veloce.php_scanner import PHPScanner
@@ -36,7 +39,23 @@ class Orchestrator:
         )
         self._cfg = cfg
 
+    def _setup_targets(self) -> None:
+        """Cree les repertoires cibles et initialise le module Go si absent."""
+        work = self._cfg.mirror_work_path
+        go_path = Path(f"{work}\\target\\backend")
+        flutter_path = Path(f"{work}\\target\\frontend")
+        go_path.mkdir(parents=True, exist_ok=True)
+        flutter_path.mkdir(parents=True, exist_ok=True)
+        if not (go_path / "go.mod").exists():
+            subprocess.run(
+                ["go", "mod", "init", "veloce/backend"],
+                cwd=go_path,
+                capture_output=True,
+            )
+            print("[Veloce] go.mod initialise dans target/backend")
+
     async def run(self) -> None:
+        self._setup_targets()
         print("[Veloce] Scan PHP en cours...")
         files = self._scanner.scan()
         print(f"[Veloce] {len(files)} fichiers detectes.")
@@ -52,6 +71,7 @@ class Orchestrator:
             total_files += len(batch)
 
             # Compilation Go avec retry
+            go_ok = True
             for attempt in range(1, self._cfg.max_retry_compile + 1):
                 go_result = self._compiler.build_go()
                 if go_result.success:
@@ -59,6 +79,10 @@ class Orchestrator:
                 print(f"  [Go compile] Tentative {attempt} echouee : {go_result.errors[:150]}")
                 if attempt == self._cfg.max_retry_compile:
                     print(f"  [ALERTE] Go compile echec definitif — batch {idx} skippe.")
+                    go_ok = False
+
+            if not go_ok:
+                continue
 
             # Analyse Flutter avec retry
             for attempt in range(1, self._cfg.max_retry_compile + 1):
